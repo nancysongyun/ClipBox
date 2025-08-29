@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>ClipBox</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="popup.css" />
+  <style>
+    html, body {
+      overflow: hidden !important;
+      overscroll-behavior: none !important;
+      touch-action: pan-y !important;
+      margin: 0; padding: 0; background: transparent;
+    }
+    body {
+      display: flex; justify-content: flex-end; align-items: stretch;
+      width: 100%; min-width: 320px; overflow: hidden !important;
+    }
+    /* 回到顶部按钮（固定在右下角） */
+    #backTopBtn{
+      position: fixed; right: 12px; bottom: 12px; z-index: 1000; display: none;
+      align-items: center; gap: 6px; padding: 8px 10px; border-radius: 12px;
+      border: 1px solid var(--border); background: var(--panel); color: var(--text);
+      cursor: pointer; box-shadow: var(--shadow); user-select: none;
+      transition: box-shadow .18s, transform .06s;
+    }
+    #backTopBtn.show{ display:flex; }
+    #backTopBtn:hover{ transform: translateY(-1px); box-shadow: 0 12px 30px rgba(136,149,169,.30); }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- 顶栏：左标题；右侧“设置”文字按钮 -->
+    <header class="topbar">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;">
+        <h1 style="display:flex;align-items:center;gap:8px;margin:0;">
+          <span id="titleIcon" aria-hidden="true" style="font-size:18px;">📦</span>
+          <span id="titleText">ClipBox</span>
+        </h1>
+        <button id="settingsBtn" class="btn-ghost" title="设置" aria-label="设置">设置</button>
+      </div>
+    </header>
+
+    <!-- 搜索工具条（不参与列表滚动） -->
+    <section class="toolbar toolbar--search">
+      <input id="searchInput" class="search" type="search" placeholder="搜索内容…" />
+      <select id="typeFilter" class="select">
+        <option value="">全部类别</option>
+      </select>
+    </section>
+
+    <!-- 动作工具条（外壳 + 四个按钮；不参与列表滚动） -->
+    <section class="toolbar toolbar--actions">
+      <div class="actionsShell">
+        <button id="addBtn" class="btn primary" title="新增">
+          <span class="toolIcon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </span>
+          <span class="toolText">新增</span>
+        </button>
+
+        <button id="pasteBtn" class="btn" title="粘贴">
+          <span class="toolIcon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24">
+              <path d="M9 3h6l1 2h2a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2h2l1-2z" fill="none" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M8 12h8M8 16h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="toolText">粘贴</span>
+        </button>
+
+        <button id="exportBtn" class="btn" title="导出">
+          <span class="toolIcon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 16V4m0 0 4 4m-4-4-4 4M4 20h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="toolText">导出</span>
+        </button>
+
+        <label for="importFile" class="btn" id="importLabel" title="导入" role="button">
+          <span class="toolIcon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 8v12m0 0 4-4m-4 4-4-4M4 4h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="toolText">导入</span>
+        </label>
+        <input id="importFile" type="file" accept="application/json" hidden />
+      </div>
+    </section>
+
+    <!-- 列表区（唯一滚动区） -->
+    <main id="list" class="list">
+      <!-- 可选：列表渲染内容插入这里 -->
+      <div id="sentinel" style="height:1px;"></div>
+    </main>
+
+    <!-- 设置弹窗（无“高度”设置） -->
+    <dialog id="settingsDialog" class="dialog">
+      <form method="dialog" id="settingsForm" class="dialog-form">
+        <h3>设置</h3>
+
+        <label class="field">
+          <span>标题文字</span>
+          <input id="settingsTitle" type="text" placeholder="如：ClipBox" />
+        </label>
+
+        <div class="field">
+          <span>标题图标（预设）</span>
+          <div id="iconChoices">
+            <label><input type="radio" name="titleIcon" value="heart" /><span style="font-size:16px;">❤️</span><span>爱心</span></label>
+            <label><input type="radio" name="titleIcon" value="cat" /><span style="font-size:16px;">🐱</span><span>猫咪</span></label>
+            <label><input type="radio" name="titleIcon" value="book" /><span style="font-size:16px;">📚</span><span>书本</span></label>
+            <label><input type="radio" name="titleIcon" value="robot" /><span style="font-size:16px;">🤖</span><span>机器人</span></label>
+            <label><input type="radio" name="titleIcon" value="box" /><span style="font-size:16px;">📦</span><span>盒子</span></label>
+          </div>
+        </div>
+
+        <menu class="dialog-actions">
+          <button id="settingsCancelBtn" class="btn" value="cancel" formnovalidate>取消</button>
+          <button id="settingsSaveBtn" class="btn primary" value="default">保存</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <!-- 编辑/新增弹窗 -->
+    <dialog id="editDialog" class="dialog">
+      <form method="dialog" id="editForm" class="dialog-form">
+        <h3 id="dialogTitle">编辑用语</h3>
+        <label class="field">
+          <span>内容</span>
+          <textarea id="contentInput" rows="5" required placeholder="请输入内容（上限 9999 字）"></textarea>
+        </label>
+        <label class="field">
+          <span>类别</span>
+          <input id="typeInput" type="text" placeholder="如：通用、售前、技术支持…" list="typeList" />
+          <datalist id="typeList"></datalist>
+        </label>
+        <menu class="dialog-actions">
+          <button id="cancelBtn" class="btn" value="cancel" formnovalidate>取消</button>
+          <button id="saveBtn" value="default" class="btn primary">保存</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <!-- 列表项模板 -->
+    <template id="itemTpl">
+      <article class="item">
+        <div class="colorDot"></div>
+        <div class="meta">
+          <div class="content"></div>
+          <div class="typeTag"></div>
+        </div>
+        <div class="ops">
+          <button class="btn-ghost copyBtn" title="复制">复制</button>
+          <button class="btn-ghost editBtn" title="编辑">编辑</button>
+          <button class="btn-ghost danger delBtn" title="删除">删除</button>
+        </div>
+      </article>
+    </template>
+  </div>
+
+  <!-- 回到顶部按钮（在列表滚到底部显示） -->
+  <button id="backTopBtn" title="回到顶部" aria-label="回到顶部">
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 5l-6 6h4v8h4v-8h4z" fill="currentColor"/>
+    </svg>
+    顶部
+  </button>
+
+  <script src="popup.js"></script>
+</body>
+</html>

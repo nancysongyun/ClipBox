@@ -1,0 +1,185 @@
+:root{
+  /* 马卡龙浅色主题 */
+  --bg:#f8fafc;
+  --panel:#ffffff;
+  --panel-2:#faf5ff;
+  --text:#334155;
+  --muted:#64748b;
+  --brand:#a78bfa;
+  --brand-ink:#6d28d9;
+  --danger:#fda4af;
+  --border:#e5e7eb;
+  --radius:14px;
+  --gap:10px;
+  --shadow:0 10px 28px rgba(136,149,169,.26);
+
+  /* 尺寸与布局 */
+  --topbar-h:56px;
+  --toolbar-h:64px; /* 主按钮高度更厚实 */
+  --app-w:420px;    /* 默认面板更宽 */
+}
+
+*{ box-sizing:border-box; }
+html,body{
+  margin:0; padding:0;
+  background:var(--bg); color:var(--text);
+  font-family: ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Noto Color Emoji";
+  overflow:hidden;!important             /* 主面板整体不滚动 */
+}
+
+/* 顶栏 */
+.topbar{
+  --gradA:#fdf2f8; --gradB:#faf5ff; --gradC:#ecfeff;
+  min-height:var(--topbar-h);
+  display:flex; align-items:center;
+  padding:12px 14px;
+  background:linear-gradient(90deg,var(--gradA),var(--gradB),var(--gradC));
+  border-bottom:1px solid var(--border);
+}
+.topbar h1{ margin:0; font-size:16px; font-weight:700; color:#4b5563; }
+.btn-ghost{
+  background:transparent; border:1px solid transparent; color:var(--muted);
+  padding:6px 10px; border-radius:999px; cursor:pointer;
+  transition:background .18s, transform .06s, color .18s, border-color .18s;
+}
+.btn-ghost:hover{ background:#eef2ff; color:#4f46e5; transform:translateY(-1px); border-color:#e5e7eb; }
+
+/* 工具条（不随列表滚动） */
+.toolbar{
+  display:flex; align-items:center; gap:var(--gap);
+  padding:10px 12px;
+  background:var(--panel);
+  border-bottom:1px solid var(--border);
+}
+.toolbar--search{}
+.toolbar--actions{}
+
+/* 搜索控件 */
+.search,.select{
+  padding:10px 12px; border-radius:12px; border:1px solid var(--border);
+  background:#fff; color:var(--text); outline:none; transition: box-shadow .18s, border-color .18s;
+}
+.search{ flex:1; min-width:0; }
+.search:focus,.select:focus{
+  border-color: color-mix(in oklab, var(--brand) 45%, #fff);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--brand) 18%, transparent);
+}
+
+/* —— 外壳容器（与四个按钮一起固定在列表上方） —— */
+.actionsShell{
+  width:100%;
+  display:flex;
+  gap:10px;
+  padding:8px;                          /* 外壳内边距 */
+  border-radius:16px;
+  border:1px solid rgba(167,139,250,.28);
+  background: rgba(255,255,255,.75);
+  -webkit-backdrop-filter: saturate(160%) blur(6px);
+  backdrop-filter: saturate(160%) blur(6px);
+  box-shadow: 0 8px 22px rgba(167,139,250,.2);
+  overflow:hidden;                       /* 防止按钮外溢 */
+}
+
+/* 操作按钮（横向均匀分布 + 圆角磨砂阴影；高度↑） */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center;
+  gap:10px; height:var(--toolbar-h); padding:10px 14px;
+  border-radius:14px; border:1px solid rgba(167,139,250,.28);
+  background: rgba(255,255,255,.85);
+  color:var(--text);
+  cursor:pointer; user-select:none;
+  -webkit-backdrop-filter: saturate(160%) blur(6px);
+  backdrop-filter: saturate(160%) blur(6px);
+  box-shadow: var(--shadow);
+  transition: box-shadow .18s, transform .06s, border-color .18s, background .18s;
+  white-space:nowrap;
+  flex:1 1 0; min-width:0;               /* 均匀分布 */
+}
+.btn:hover{
+  transform: translateY(-1px);
+  border-color: rgba(109,40,217,.35);
+  background: rgba(255,255,255,.95);
+  box-shadow: 0 14px 34px rgba(167,139,250,.32);
+}
+.btn.primary{
+  background: linear-gradient(180deg, color-mix(in oklab,var(--brand) 84%,#fff) 0%, var(--brand) 100%);
+  color:#fff;
+  border-color: color-mix(in oklab, var(--brand-ink) 40%, #fff);
+}
+.btn.primary:hover{ box-shadow: 0 16px 38px rgba(167,139,250,.40); }
+.btn .toolIcon{ display:inline-flex; line-height:1; transform:scale(1); transition:transform .12s; }
+.btn:hover .toolIcon{ transform:scale(1.08); }
+.toolText{ font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* —— 设置面板：标题图标选项横向（不竖排） —— */
+#iconChoices{
+  display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+}
+#iconChoices label{
+  display:inline-flex !important;
+  flex-direction:row !important;   /* 强制横向 */
+  align-items:center; gap:6px;
+  padding:6px 10px;
+  border:1px dashed var(--border);
+  border-radius:12px;
+  background:#fff; color:#var(--text);
+  white-space:nowrap;              /* 单个选项不折成竖排 */
+  word-break:keep-all;             /* 中文尽量整词换行 */
+}
+
+/* 列表（唯一的垂直滚动区域） */
+.list{
+  flex:1 1 auto; min-height:0;
+  padding:12px;
+  display:flex; flex-direction:column; gap:12px;
+  overflow-y:auto;    /* ← 只有列表滚动 */
+}
+
+/* 列表项 */
+.item{
+  display:grid; grid-template-columns:10px 1fr auto; gap:10px; align-items:center;
+  padding:12px; border-radius:var(--radius); background:var(--panel); border:1px solid var(--border);
+  box-shadow:0 8px 22px rgba(136,149,169,.18);
+  transition: box-shadow .2s, transform .08s, border-color .2s;
+}
+.item:hover{ transform: translateY(-1px); box-shadow:0 10px 26px rgba(136,149,169,.28); border-color:#dbe2ea; }
+.colorDot{ width:10px; height:10px; border-radius:50%; background:#9aa3af; }
+.meta{ display:flex; flex-direction:column; gap:6px; }
+.content{ font-size:13px; line-height:1.5; color:var(--text);
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-all; }
+.typeTag{ display:inline-flex; align-items:center; gap:8px; font-size:12px; color:#475569; padding:4px 8px; border-radius:999px; background:#f5f3ff; border:1px solid #ede9fe; }
+.typeTag::before{ content:"类别"; color:#64748b; opacity:.75; font-size:11px; }
+
+/* 列表项内操作按钮（轻量） */
+.btn-ghost{ background:transparent; border:none; color:var(--muted); padding:6px 8px; border-radius:10px; cursor:pointer; transition:background .18s; }
+.btn-ghost:hover{ background:#f1f5f9; color:var(--text); }
+.btn-ghost.danger:hover{ color:#b91c1c; background:#fee2e2; }
+
+/* 弹窗 */
+.dialog{ border:none; border-radius:16px; padding:0; background:var(--panel); color:var(--text); width:min(560px,92vw); box-shadow:0 24px 60px rgba(136,149,169,.36); }
+.dialog::backdrop{ background:rgba(149,156,179,.28); }
+
+/* 取消/保存固定在右下角且“宽>高” */
+.dialog-form{
+  padding:14px;
+  display:flex; flex-direction:column; min-height:280px;
+}
+.dialog-form h3{ margin:6px 0 12px; font-size:16px; color:#475569; }
+.field{ display:flex; gap:8px; flex-direction:column; margin:10px 0; }
+.field textarea,.field input{ width:100%; border-radius:12px; border:1px solid var(--border); background:#fff; color:var(--text); padding:10px 12px; outline:none; }
+.field textarea:focus,.field input:focus{ border-color: color-mix(in oklab, var(--brand) 45%, #fff); box-shadow:0 0 0 4px color-mix(in oklab, var(--brand) 18%, transparent); }
+.dialog-actions{ margin-top:auto; align-self:flex-end; display:flex; gap:8px; }
+.dialog-actions .btn{ height:36px; padding:6px 14px; border-radius:12px; }
+
+/* 布局：#app 固定大小、不滚动；只让 .list 滚动 */
+#app{
+  width: var(--app-w);
+  height: auto;
+  display:flex; flex-direction:column;
+  overflow:hidden !important
+}
+
+/* 滚动条（仅列表显示） */
+.list::-webkit-scrollbar{ width:10px; }
+.list::-webkit-scrollbar-thumb{ background:#e9edf3; border-radius:999px; border:2px solid #f8fafc; }
+.list::-webkit-scrollbar-thumb:hover{ background:#e1e7ef; }

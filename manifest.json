@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "ClipBox",
+  "version": "1.0.0",
+  "description": "一个盒子：支持搜索、分类筛选、导入/导出、复制/编辑/删除。",
+  "permissions": ["storage", "clipboardWrite", "clipboardRead"],
+  "icons": {
+    "16": "icon.ico",
+    "32": "icon.ico",
+    "48": "icon.ico",
+    "128": "icon.ico"
+  },
+  "action": {
+    "default_title": "Quick Phrases",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon.ico",
+      "32": "icon.ico",
+      "48": "icon.ico",
+      "128": "icon.ico"
+    }
+  }
+}
