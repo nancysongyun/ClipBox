@@ -12,7 +12,8 @@ const PRESET_ICONS = {
   cat: '🐱',
   book: '📚',
   robot: '🤖',
-  box: '📦'
+  box: '📦',
+  github: '�'
 };
 
 // 面板总高度（主面板整体不竖向滚动；只让列表滚动）
