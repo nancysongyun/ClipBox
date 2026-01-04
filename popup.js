@@ -142,6 +142,7 @@ const els = {
   app: document.getElementById('app'),
   list: document.getElementById('list'),
   backTopBtn: document.getElementById('backTopBtn'),
+  undoBtn: document.getElementById('undoBtn'),
 
   // header / settings
   titleIcon: document.getElementById('titleIcon'),
@@ -182,7 +183,9 @@ let state = {
   filterType: '',
   editingId: null,
   settings: { ...DEFAULT_SETTINGS },
-  typeIcons: { ...DEFAULT_TYPE_ICONS }
+  typeIcons: { ...DEFAULT_TYPE_ICONS },
+  deletedHistory: [], // 删除历史，最多保留5个
+  undoTimer: null // 撤销按钮的定时器
 };
 
 function applySettingsToHeader() {
@@ -310,11 +313,59 @@ async function ensureClipboardReadPermission() {
   catch { return false; }
 }
 
-// “回到顶部”显隐（以列表滚动位置为准）
+// "回到顶部"显隐（以列表滚动位置为准）
 function updateBackTopVisibility() {
   if (!els.list || !els.backTopBtn) return;
   const nearBottom = (els.list.scrollTop + els.list.clientHeight) >= (els.list.scrollHeight - 2);
   els.backTopBtn.classList.toggle('show', nearBottom);
+}
+
+// 显示撤销按钮（5秒后自动隐藏）
+function showUndoButton() {
+  if (!els.undoBtn) return;
+
+  // 清除之前的定时器
+  if (state.undoTimer) {
+    clearTimeout(state.undoTimer);
+  }
+
+  // 显示撤销按钮
+  els.undoBtn.classList.add('show');
+
+  // 5秒后隐藏
+  state.undoTimer = setTimeout(() => {
+    els.undoBtn.classList.remove('show');
+    state.undoTimer = null;
+  }, 5000);
+}
+
+// 添加到删除历史
+function addToDeletedHistory(item) {
+  state.deletedHistory.push(item);
+  // 最多保留5个
+  if (state.deletedHistory.length > 5) {
+    state.deletedHistory.shift();
+  }
+  showUndoButton();
+}
+
+// 撤销删除
+async function undoDelete() {
+  if (state.deletedHistory.length === 0) return;
+
+  const item = state.deletedHistory.pop();
+  state.items.push(item);
+  await saveItems(state.items);
+  await refresh();
+
+  // 如果没有更多可撤销的项，隐藏按钮
+  if (state.deletedHistory.length === 0) {
+    els.undoBtn.classList.remove('show');
+    if (state.undoTimer) {
+      clearTimeout(state.undoTimer);
+      state.undoTimer = null;
+    }
+  }
 }
 
 // —— 新增/编辑弹窗提交：保存逻辑（修复"新增无效"问题） —— //
@@ -469,6 +520,11 @@ if (els.editForm) {
     if (btn.classList.contains('editBtn')) { openDialog('edit', item); return; }
     if (btn.classList.contains('delBtn')) {
       if (!confirm('确认删除该条用语？')) return;
+
+      // 添加到删除历史
+      addToDeletedHistory({ ...item });
+
+      // 从列表中移除
       state.items = state.items.filter(x => x.id !== id);
       await saveItems(state.items);
       await refresh();
@@ -553,6 +609,9 @@ if (els.editForm) {
   els.backTopBtn.addEventListener('click', () => {
     els.list.scrollTo({ top: 0, behavior: 'smooth' });
   });
+
+  // 撤销删除
+  els.undoBtn.addEventListener('click', undoDelete);
 
   // 首次无数据时放入示例
   if (state.items.length === 0) {

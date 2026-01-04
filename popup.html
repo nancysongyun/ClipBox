@@ -26,6 +26,17 @@
     }
     #backTopBtn.show{ display:flex; }
     #backTopBtn:hover{ transform: translateY(-1px); box-shadow: 0 12px 30px rgba(136,149,169,.30); }
+
+    /* 撤销删除按钮（固定在左下角） */
+    #undoBtn{
+      position: fixed; left: 12px; bottom: 12px; z-index: 1000; display: none;
+      align-items: center; gap: 6px; padding: 8px 10px; border-radius: 12px;
+      border: 1px solid #f59e0b; background: #fffbeb; color: #d97706;
+      cursor: pointer; box-shadow: var(--shadow); user-select: none;
+      transition: box-shadow .18s, transform .06s, opacity .3s;
+    }
+    #undoBtn.show{ display:flex; }
+    #undoBtn:hover{ transform: translateY(-1px); box-shadow: 0 12px 30px rgba(245,158,11,.30); background: #fef3c7; }
   </style>
 </head>
 <body>
@@ -178,6 +189,14 @@
       <path d="M12 5l-6 6h4v8h4v-8h4z" fill="currentColor"/>
     </svg>
     顶部
+  </button>
+
+  <!-- 撤销删除按钮（左下角） -->
+  <button id="undoBtn" title="撤销删除" aria-label="撤销删除">
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 010 11H11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    撤销
   </button>
 
   <script src="popup.js"></script>
