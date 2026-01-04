@@ -1,6 +1,7 @@
 // ===== 常量 / 存储键 =====
 const STORAGE_KEY = 'quickPhrases';
 const SETTINGS_KEY = 'clipbox_settings';
+const TYPE_ICONS_KEY = 'clipbox_type_icons';
 
 const DEFAULT_SETTINGS = {
   title: 'ClipBox',
@@ -13,7 +14,16 @@ const PRESET_ICONS = {
   book: '📚',
   robot: '🤖',
   box: '📦',
-  github: '�'
+  github: '🐙'
+};
+
+// 默认type图标映射
+const DEFAULT_TYPE_ICONS = {
+  '通用': '📝',
+  '剪贴板': '📋',
+  '工作': '💼',
+  '学习': '📚',
+  '代码': '💻'
 };
 
 // 面板总高度（主面板整体不竖向滚动；只让列表滚动）
@@ -37,21 +47,80 @@ async function saveSettings(settings) {
   await chrome.storage.local.set({ [SETTINGS_KEY]: settings });
 }
 
-// 导出/导入
-function toExportPayload(items) {
-  return items.map(({ content, type }) => ({ content, type }));
+async function loadTypeIcons() {
+  const { [TYPE_ICONS_KEY]: icons } = await chrome.storage.local.get(TYPE_ICONS_KEY);
+  return { ...DEFAULT_TYPE_ICONS, ...(icons || {}) };
 }
-function fromImportPayload(arr) {
+async function saveTypeIcons(icons) {
+  await chrome.storage.local.set({ [TYPE_ICONS_KEY]: icons });
+}
+
+// 导出/导入 - 新格式：按type分组的数组结构
+async function toExportPayload(items) {
+  const typeIcons = await loadTypeIcons();
+  const grouped = {};
+
+  // 按type分组
+  items.forEach(item => {
+    const type = item.type || '未分类';
+    if (!grouped[type]) {
+      grouped[type] = [];
+    }
+    grouped[type].push({
+      id: item.id,
+      content: item.content,
+      key: item.key || ''  // 关键字字段
+    });
+  });
+
+  // 转换为数组格式
+  return Object.keys(grouped).map(type => ({
+    type: type,
+    icon: typeIcons[type] || '📌',
+    data: grouped[type]
+  }));
+}
+
+function fromImportPayload(exportData) {
   const now = Date.now();
-  return arr
-    .filter(x => x && typeof x.content === 'string')
-    .map((x, idx) => ({
-      id: crypto.randomUUID ? crypto.randomUUID() : `id_${now}_${idx}`,
-      content: String(x.content),
-      type: String(x.type || '').trim(),
-      createdAt: now,
-      updatedAt: now
-    }));
+  const items = [];
+
+  // 兼容旧格式（直接是数组）
+  if (Array.isArray(exportData) && exportData.length > 0) {
+    if (exportData[0].content && !exportData[0].data) {
+      // 旧格式：[{content, type}]
+      return exportData
+        .filter(x => x && typeof x.content === 'string')
+        .map((x, idx) => ({
+          id: crypto.randomUUID ? crypto.randomUUID() : `id_${now}_${idx}`,
+          content: String(x.content),
+          type: String(x.type || '').trim(),
+          key: '',
+          createdAt: now,
+          updatedAt: now
+        }));
+    }
+
+    // 新格式：[{type, icon, data: [{id, content, key}]}]
+    exportData.forEach((typeGroup, groupIdx) => {
+      if (!typeGroup.data || !Array.isArray(typeGroup.data)) return;
+
+      typeGroup.data.forEach((item, itemIdx) => {
+        if (!item || typeof item.content !== 'string') return;
+
+        items.push({
+          id: item.id || (crypto.randomUUID ? crypto.randomUUID() : `id_${now}_${groupIdx}_${itemIdx}`),
+          content: String(item.content),
+          type: String(typeGroup.type || '').trim(),
+          key: String(item.key || '').trim(),
+          createdAt: now,
+          updatedAt: now
+        });
+      });
+    });
+  }
+
+  return items;
 }
 
 // 类型 → 颜色
@@ -96,9 +165,15 @@ const els = {
   editForm: document.getElementById('editForm'),
   contentInput: document.getElementById('contentInput'),
   typeInput: document.getElementById('typeInput'),
+  keyInput: document.getElementById('keyInput'),
   typeList: document.getElementById('typeList'),
   saveBtn: document.getElementById('saveBtn'),
-  itemTpl: document.getElementById('itemTpl')
+  itemTpl: document.getElementById('itemTpl'),
+
+  // type图标管理
+  typeIconsDialog: document.getElementById('typeIconsDialog'),
+  typeIconsForm: document.getElementById('typeIconsForm'),
+  typeIconsList: document.getElementById('typeIconsList')
 };
 
 let state = {
@@ -106,7 +181,8 @@ let state = {
   filterText: '',
   filterType: '',
   editingId: null,
-  settings: { ...DEFAULT_SETTINGS }
+  settings: { ...DEFAULT_SETTINGS },
+  typeIcons: { ...DEFAULT_TYPE_ICONS }
 };
 
 function applySettingsToHeader() {
@@ -148,7 +224,7 @@ function renderList() {
   const t = decodeURIComponent(state.filterType || '');
   const filtered = state.items
     .filter(i => (t ? (i.type === t) : true))
-    .filter(i => (q ? (i.content.toLowerCase().includes(q) || (i.type || '').toLowerCase().includes(q)) : true))
+    .filter(i => (q ? (i.content.toLowerCase().includes(q) || (i.type || '').toLowerCase().includes(q) || (i.key || '').toLowerCase().includes(q)) : true))
     .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
   els.list.innerHTML = '';
@@ -159,7 +235,7 @@ function renderList() {
     empty.style.padding = '24px 8px';
     empty.textContent = '暂无数据';
     els.list.appendChild(empty);
-    // 末尾 1px 哨兵，便于“回到顶部”逻辑统一
+    // 末尾 1px 哨兵，便于"回到顶部"逻辑统一
     const sentinel = document.createElement('div');
     sentinel.style.height = '1px';
     els.list.appendChild(sentinel);
@@ -170,9 +246,23 @@ function renderList() {
   for (const item of filtered) {
     const node = els.itemTpl.content.firstElementChild.cloneNode(true);
     node.dataset.id = item.id;
-    node.querySelector('.colorDot').style.background = colorForType(item.type);
+
+    // 使用emoji图标
+    const typeIcon = state.typeIcons[item.type] || '📌';
+    node.querySelector('.typeIcon').textContent = typeIcon;
+
     node.querySelector('.content').textContent = item.content;
     node.querySelector('.typeTag').textContent = item.type || '未分类';
+
+    // 显示关键字（如果有）
+    const keyTag = node.querySelector('.keyTag');
+    if (item.key && item.key.trim()) {
+      keyTag.textContent = item.key;
+      keyTag.style.display = 'inline-flex';
+    } else {
+      keyTag.style.display = 'none';
+    }
+
     els.list.appendChild(node);
   }
   // 列表末尾哨兵
@@ -202,6 +292,7 @@ function openDialog(mode, item) {
   els.dialogTitle.textContent = mode === 'edit' ? '编辑用语' : '新增用语';
   els.contentInput.value = item?.content || '';
   els.typeInput.value = item?.type || '';
+  els.keyInput.value = item?.key || '';
   els.dialog.showModal();
 }
 function closeDialog() {
@@ -226,16 +317,17 @@ function updateBackTopVisibility() {
   els.backTopBtn.classList.toggle('show', nearBottom);
 }
 
-// —— 新增/编辑弹窗提交：保存逻辑（修复“新增无效”问题） —— //
+// —— 新增/编辑弹窗提交：保存逻辑（修复"新增无效"问题） —— //
 if (els.editForm) {
   els.editForm.addEventListener('submit', async (e) => {
-    // 如果点击的是“取消”按钮，直接交给 <dialog> 默认关闭
+    // 如果点击的是"取消"按钮，直接交给 <dialog> 默认关闭
     if (e.submitter && e.submitter.id === 'cancelBtn') return;
 
     e.preventDefault();
 
     const content = (els.contentInput.value || '').trim();
     const type = (els.typeInput.value || '').trim();
+    const key = (els.keyInput.value || '').trim();
     if (!content) {
       alert('内容不能为空');
       return;
@@ -251,6 +343,7 @@ if (els.editForm) {
           ...state.items[idx],
           content,
           type,
+          key,
           updatedAt: now
         };
       }
@@ -260,6 +353,7 @@ if (els.editForm) {
         id: crypto.randomUUID ? crypto.randomUUID() : `id_${now}_${Math.random().toString(16).slice(2)}`,
         content,
         type,
+        key,
         createdAt: now,
         updatedAt: now
       });
@@ -277,6 +371,7 @@ if (els.editForm) {
 (async function init() {
   state.items = await loadItems();
   state.settings = await loadSettings();
+  state.typeIcons = await loadTypeIcons();
   await refresh();
 
   // 搜索
@@ -305,7 +400,7 @@ if (els.editForm) {
       const now = Date.now();
       state.items.unshift({
         id: crypto.randomUUID ? crypto.randomUUID() : `id_${now}_${Math.random().toString(16).slice(2)}`,
-        content, type: '剪贴板', createdAt: now, updatedAt: now
+        content, type: '剪贴板', key: '', createdAt: now, updatedAt: now
       });
       await saveItems(state.items);
       await refresh();
@@ -320,7 +415,7 @@ if (els.editForm) {
 
   // 导出
   els.exportBtn.addEventListener('click', async () => {
-    const payload = toExportPayload(state.items);
+    const payload = await toExportPayload(state.items);
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -390,8 +485,36 @@ if (els.editForm) {
       r.checked = (r.value === iconValue);
     });
 
+    // 填充type图标列表
+    buildTypeIconsList();
+
     els.settingsDialog.showModal();
   });
+
+  // 构建type图标列表
+  function buildTypeIconsList() {
+    const types = [...new Set(state.items.map(i => i.type).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+
+    if (!els.typeIconsList) return;
+
+    els.typeIconsList.innerHTML = '';
+
+    if (types.length === 0) {
+      els.typeIconsList.innerHTML = '<div style="color:#9aa3af;padding:12px;text-align:center;">暂无类别</div>';
+      return;
+    }
+
+    types.forEach(type => {
+      const currentIcon = state.typeIcons[type] || '📌';
+      const row = document.createElement('div');
+      row.className = 'type-icon-row';
+      row.innerHTML = `
+        <span class="type-name">${escapeHTML(type)}</span>
+        <input type="text" class="emoji-input" data-type="${escapeHTML(type)}" value="${escapeHTML(currentIcon)}" placeholder="📌" maxlength="2" />
+      `;
+      els.typeIconsList.appendChild(row);
+    });
+  }
 
   els.settingsForm.addEventListener('submit', async (e) => {
     const isCancel = e.submitter && e.submitter.id === 'settingsCancelBtn';
@@ -402,9 +525,23 @@ if (els.editForm) {
     const selectedIcon = els.settingsForm.querySelector('input[name="titleIcon"]:checked');
     const icon = selectedIcon ? selectedIcon.value : DEFAULT_SETTINGS.icon;
 
+    // 保存type图标设置
+    if (els.typeIconsList) {
+      const emojiInputs = els.typeIconsList.querySelectorAll('.emoji-input');
+      emojiInputs.forEach(input => {
+        const type = input.dataset.type;
+        const emoji = input.value.trim();
+        if (type && emoji) {
+          state.typeIcons[type] = emoji;
+        }
+      });
+      await saveTypeIcons(state.typeIcons);
+    }
+
     state.settings = { title, icon };
     await saveSettings(state.settings);
     applySettingsToHeader();
+    await refresh();
     els.settingsDialog.close();
   });
 
